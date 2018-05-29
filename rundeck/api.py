@@ -12,7 +12,7 @@ except ImportError:
     from urllib.parse import quote as urlquote
 
 from rundeck.connection import RundeckConnectionTolerant, RundeckConnection
-from rundeck.util import cull_kwargs, dict2dict2argstring, StringType
+from rundeck.util import cull_kwargs, dict2argstring, StringType
 from rundeck.exceptions import (
     InvalidResponseFormat,
     InvalidJobDefinitionFormat,
@@ -273,3 +273,68 @@ class RundeckApiTolerant(object):
                 exact group path to match or the special top level only char '-'
         '''
         return self.jobs(project, **kwargs)
+
+    def job_run(self, job_id, **kwargs):
+        '''
+        Wraps Rundeck API GET /job/[ID]/run <http://rundeck.org/docs/api/index.html#running-a-job>
+
+        Returns a class ``rundeck.connection.RundeckResponse``
+
+        :param job_id:
+            (str) Rundeck job ID
+
+        :keyword args:
+            argString (str) | (dict):
+                argument string to pass to job if ``str``, it is passed as is if ``dict`` will be
+                converted to compatible ``str``
+            loglevel (str('DEBUG', 'VERBOSE', 'INFO', 'WARN', 'ERROR')):
+                [default: 'INFO']
+                logging level
+            asUser (str):
+                user to run specified job as
+            exclude-precedence (bool):
+                [default: ``True``]
+                set the exclusion precedence
+            hostname (str):
+                hostname inclusion filter
+            tags (str):
+                tags inclusion filter
+            os-name (str):
+                os-name inclusion filter
+            os-family (str):
+                os-family inclusion filter
+            os-arch (str):
+                os-arch inclusion filter
+            os-version (str):
+                os-version inclusion filter
+            name (str):
+                name inclusion filter
+            exclude-hostname (str):
+                hostname exclusion filter
+            exclude-tags (str):
+                tags exclusion filter
+            exclude-os-name (str):
+                os-name exclusion filter
+            exclude-os-family (str):
+                os-family exclusion filter
+            exclude-os-arch (str):
+                os-arch exclusion filter
+            exclude-os-version (str):
+                os-version exclusion filter
+            exclude-name (str):
+                name exclusion filter
+        '''
+        params = cull_kwargs(('argString', 'loglevel', 'asUser', 'exclude-precedence',
+            'hostname', 'tags', 'os-name', 'os-family', 'os-arch', 'os-version', 'name',
+            'exclude-hostname', 'exclude-tags', 'exclude-os-name', 'exclude-os-family',
+            'exclude-os-arch', 'exclude-os-version', 'exclude-name'), kwargs)
+
+        argString = params.get('argString', None)
+        if argString is not None:
+            params['argString'] = dict2argstring(argString)
+
+        return self._exec(GET, 'job/{0}/run'.format(job_id), params=params, **kwargs)
+
+    def jobs_export(self, project, **kwargs):
+        '''
+        '''
