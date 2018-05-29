@@ -337,4 +337,402 @@ class RundeckApiTolerant(object):
 
     def jobs_export(self, project, **kwargs):
         '''
+        Wraps Rundeck API GET /jobs/export <http://rundeck.org/docs/api/index.html#exporting-jobs>
+
+        Returns a Requests response
+
+        :param project:
+            (str) name of the project
+
+        :keyword args:
+            [default: 'xml']
+            fmt (str) 'xml' or 'yaml':
+                format of the definition string
+            idlist (list(str, ...)):
+                list of job ids to return
+            groupPath (str):
+                group path, partial group path or the special top level only char '-'
+            jobFilter (str):
+                find job names that include this string
+        '''
+        params = cull_kwargs(('fmt', 'idlist', 'groupPath', 'jobFilter'), kwargs)
+        if 'fmt' in params:
+            params['format'] = params.pop('fmt')
+        params['project'] = project
+
+        return self._exec(GET, 'jobs/export', params=params, parse_response=False, **kwargs)
+
+
+    def jobs_import(self, definition, **kwargs):
+        '''
+        Wraps Rundeck API POST /jobs/import <http://rundeck.org/docs/api/index.html#importing-jobs>
+
+        Returns a class ``rundeck.connection.RundeckResponse``
+
+        :param definition:
+            (str) string representing a job definition
+
+        :keyword args:
+            fmt ((str) 'xml' or 'yaml'):
+                [default: 'xml']
+                format of the definition string
+            dupeOption ((str) 'skip', 'create' or 'update'):
+                [default: 'create']
+                value to indicate the behavior when importing jobs that already exist
+            project (str):
+                specifies the project that all job definitions should be imported to, otherwise all job
+                definitions must define a project
+            uuidOption ((str) 'preserve' or 'remove'):
+                preserve or remove UUIDs in imported jobs, preserve may fail if a UUID already exists
+        '''
+        data = cull_kwargs(('fmt', 'dupeOption', 'project', 'uuidOption'), kwargs)
+        data['xmlBatch'] = definition
+        if 'fmt' in data:
+            data['format'] = data.pop('fmt')
+
+        return self._exec(POST, 'jobs/import', data=data, **kwargs)
+
+    def job(self, job_id, **kwargs):
+        '''
+        Wraps Rundeck API GET /job/[ID] <http://rundeck.org./docs/api/index.html#getting-a-job-definition>
+
+        Returns a Requests response
+
+        :param job_id:
+            (str) Rundeck job ID
+
+        :keyword args:
+            fmt (str):
+                [default: 'xml']
+                format of the response of one of ``rundeck .defaults.JobDefFormat`` ``values``
+        '''
+        params = cull_kwargs(('fmt',), kwargs)
+
+        if 'fmt' in params:
+            params['format'] = params.pop('fmt')
+
+        return self._exec(GET, 'job/{0}'.format(job_id), params=params, parse_response=False, **kwargs)
+
+    def delete_job(self, job_id, **kwargs):
+        '''
+        Wraps Rundeck API DELETE /job/[ID] <http://rndeck.org/docs/api/index.html#deleting-a-job-definition>
+
+        Returns a Requests response
+
+        :param job_id:
+            (str) Rundeck job ID
+        '''
+        return self._exec(DELETE, 'job/{0}'.format(job_id), parse_response=False, **kwargs)
+
+    def jobs_delete(self, idlist, **kwargs):
+        '''
+        Wraps Rundeck API POST /jobs/delete <http://rundeck.ord/docs/api/index.hmtl#importing-jobs>
+
+        Returns a class ``rundeck.connection.RundeckResponse``
+
+        :param idlist:
+            (str) or (list(str, ...)) list of job ids or a string of comma separated job ids to delete
+        '''
+        if not isinstance(idlist, StringType) and hasattr(idlist, '__iter__'):
+            idlist = ','.join(idlist)
+
+        data = {
+            'idlist': idlist,
+        }
+
+        try:
+            return self._exec(POST, 'jobs/delete', data=data, **kwargs)
+        except Exception as e:
+            raise
+
+    def job_executions(self, job_id, **kwargs):
+        '''
+        Wraps Rundeck API GET /job/[ID]/executions <http://rundeck.org/docs/api/index.html#getting-executions-for-a-job>
+
+        Returns a class ``rundeck.connection.RundeckResponse``
+
+        :param job_id:
+            (str) Rundeck job ID
+
+        :keyword args:
+            status (str):
+                one of ``rundeck.defaults.Status`` values
+            max (int):
+                [default: 20]
+                maximum number of results to include in response
+            offset (int):
+                [default: 0]
+                offset for result set
+        '''
+        params = cull_kwargs(('status', 'max', 'offset'), kwargs)
+        return self._exec(GET, 'job/{0}/executions'.format(job_id), params=params, **kwargs)
+
+    def executions_running(self, project, **kwargs):
+        '''
+        Wraps Rundeck API GET /executions/running <http://rundeck.org/docs/api/index.html#listing-running-executions>
+
+        Returns a class ``rundeck.connection.RundeckResponse``
+
+        :param project:
+            (str) name of a Rundeck project
+        '''
+        params = {'project': project}
+        return self._exec(GET, 'executions/running', params=params, **kwargs)
+
+    def executions(self, project, **kwargs):
+        '''
+        Wraps Rundeck API GET /executions <http://rundeck.org/docs/api/index.html#getting-execution-info>
+
+        Returns a class ``rundeck.connection.RundeckResponse``
+
+        :param project:
+            (str) name of the Rundeck project
+
+        :keyword args:
+            statusFilter (str):
+                one of ``rundeck.defaults.Status`` values
+            abortedbyFilter (str):
+                user that aborted the execution
+            userFilter (str):
+                user name that initiated the execution
+            recentFilter (str):
+                Use a text format to filter executions that completed within a period of time, the format is 'XY'
+                where 'X' is an integer and 'Y' is one of the following:
+                    * `h`: hour
+                    * `d`: day
+                    * `w`: week
+                    * `m`: month
+                    * `y`: year
+
+                i.e:
+                '2w' would return executions that completed within the last two weeks
+            begin (int or str):
+                either a unix millisecond timestamp or a W3C date time i.e 'yyyy-MM-ddTHH:mm:ssZ'
+            end (int or str):
+                either a unix millisecond timestamp or a W3C date time i.e 'yyyy-MM-ddTHH:mm:ssZ'
+            adhoc (bool):
+                includes adhoc executions if set to ``True``
+            jobIdListFilter (str or list):
+                one or more job ids to include
+            excludeJobIdListFilter (str or list):
+                one or more job ids to exclude
+            jobListFilter (str or list):
+                one or more full job group/name to include
+            excludeJobListFilter (str or list):
+                one or more full job group/name to exclude
+            groupPath (str):
+                a group or partial group path to include, special '-' setting matches top level jobs only
+            groupPathExact (str):
+                an exact group path to include, special '-' setting matches top level jobs only
+            excludeGroupPath (str):
+                a group or partial group path to exclude, special '-' setting matches top level jobs only
+            excludeGroupPathExact (str):
+                an exact group path to exclude, special '-' setting matches top level jobs only
+            jobExactFilter (str):
+                an exact job name
+            excludeJobExactFilter (str):
+                an exact job name to exclude
+            max (int):
+                [default: 20]
+                maximum number of results to include in the response
+            offset (int):
+                [default: 0]
+                offset for result set
+            '''
+            self.requires_version(5)
+
+            params = cull_kwargs(('statusFilter', 'abortedbyFilter', 'userFilter', 'recentFilter',
+                                  'begin', 'end', 'adhoc', 'jobIdListFilter', 'excludeJobIdListFilter',
+                                  'jobListFilter', 'excludeJobListFilter', 'groupPath', 'groupPathExact',
+                                  'excludeGroupPath', 'excludeGroupPathExact', 'jobExactFilter',
+                                  'excludeJobExactFilter', 'max', 'offset'), kwargs)
+            params['project'] = project
+
+            return self._exec(GET, 'executions', params=params, **kwargs)
+
+    def execution_output(self, execution_id, **kwargs):
+        '''
+        Wraps Rundeck API GET /execution/[ID]/output <http://rundeck.org/docs/api/index.html#execution-output>
+
+        Returns a Requests response
+
+        :param execution_id:
+            (str) Rundeck job execution ID
+
+        :keyword args:
+            fmt (str):
+                [default: 'text']
+                format of the response of a ``rundeck.defaults.ExecutionOutputFormat`` values
+            offset (int):
+                byte offset to read from in the file, 0 indicates the beginning
+            lastlines (int):
+                number of lines to retrieve from the end of the available output (overrides offset)
+            lastmod (int):
+                a unix millisecond timestamp, return output data received after the specified timestamp
+            maxlines (int):
+                maximum number of lines to retrieve from the specified offset
+        '''
+        params = cull_kwargs(('fmt', 'offset', 'lastlines', 'lastmod', 'maxlines'), kwargs)
+        if 'fmt' in params:
+            params['format'] = params.pop('fmt')
+
+        parse_response = kwargs.pop('parse_response', False)
+
+        return self._exec(GET, 'execution/{0}/output'.format(execution_id), params=params, parse_response=parse_response, **kwargs)
+
+    def execution_abort(self, execution_id, **kwargs):
+        '''
+        Wraps Rundeck API GET /execution/[ID]/output <http://rundeck.org/docs/api/index.html#execution-output>
+
+        Returns a Requests response
+
+        :param execution_id:
+            (str) Rundeck job execution ID
+
+        :keyword args:
+            asUser (str):
+                specifies a username identifying the user who aborted the execution of job ID ``execution_id``
+        '''
+        params = cull_kwargs(('asUser',), kwargs)
+        return self._exec(GET, 'execution/{0}/abort'.format(execution_id), params=params, **kwargs)
+
+    def run_command(self, project, command, **kwargs):
+        '''
+        Wraps Rundeck API GET /run/command <http://rundeck.org/docs/api/index.html#running-adhoc-commands>
+
+        Returns a class ``rundeck.connection.RundeckResponse``
+
+        :param project:
+            (str) name of the project
+        :param command:
+            (str) command in which to run
+
+        :keyword args:
+            nodeThreadcount (int):
+                number of threads to use
+            nodeKeepgoing (bool):
+                if ``True``, continue executing on other nodes if command fails
+            asUser (str):
+                specifies a username in which to run the command, requires runAs permission
+            hostname (str):
+                hostname inclusion filter
+            tags (str):
+                tags inclusion filter
+            os-name (str):
+                os-name inclusion filter
+            os-family (str):
+                os-family inclusion filter
+            os-arch (str):
+                os-arch inclusion filter
+            os-version (str):
+                os-version inclusion filter
+            name (str):
+                name inclusion filter
+            exclude-hostname (str):
+                hostname exclusion filter
+            exclude-tags (str):
+                tags exclusion filter
+            exclude-os-name (str):
+                os-name exclusion filter
+            exclude-os-family (str):
+                os-family exclusion filter
+            exclude-os-arch (str):
+                os-arch exclusion filter
+            exclude-os-version (str):
+                os-version exclusion filter
+            exclude-name (str):
+                name exclusion filter
+        '''
+        params = cull_kwargs(('nodeThreadcount', 'nodeKeepgoing', 'asUser', 'hostname', 'tags',
+                              'os-name', 'os-family', 'os-arch', 'os-version', 'name', 'exclude-hostname',
+                              'exclude-tags', 'exclude-os-name', 'exclude-os-family', 'exclude-os-arch',
+                              'exclude-os-version', 'exclude-name'), kwargs)
+
+        params['project'] = project
+        params['exec'] = command
+
+        return self._exec(GET, 'run/command', params=params, **kwargs)
+
+    def run_script(self, project, scriptFile, **kwargs):
+        '''
+        Wraps Rundeck API POST /run/script <http://rundeck.org/docs/api/index.html#running-adhoc-scripts>
+
+        Returns a class ``rundeck.connection.RundeckResponse``
+
+        :param project:
+            (str) name of the project
+        :param scriptFile:
+            (str) a string containing the script file content
+
+        :keyword args:
+            argString (str or dict):
+                argument string to pass to the job, if ``str``, will be passed as is, otherwise ``dict``
+                will be converted to compatible string
+            nodeThreadcount (int):
+                number of threads to use
+            nodeKeepgoing (bool):
+                if ``True``, continue execution on other nodes if script fails
+            asUser (str):
+                specifies username of the user in which to run the script, requires runAs permission
+            scriptInterpreter (str):
+                command to use to execute the script (requires API version 8 or higher)
+            interpreterArgsQuoted (bool):
+                if ``True`` the script file and arguments are quoted as the last argument to the ``scriptInterpreter``
+                (requires API version 8 or higher)
+            hostname (str):
+                hostname inclusion filter
+            tags (str):
+                tags inclusion filter
+            os-name (str):
+                os-name inclusion filter
+            os-family (str):
+                os-family inclusion filter
+            os-arch (str):
+                os-arch inclusion filter
+            os-version (str):
+                os-version inclusion filter
+            name (str):
+                name inclusion filter
+            exclude-hostname (str):
+                hostname exclusion filter
+            exclude-tags (str):
+                tags exclusion filter
+            exclude-os-name (str):
+                os-name exclusion filter
+            exclude-os-family (str):
+                os-family exclusion filter
+            exclude-os-arch (str):
+                os-arch exclusion filter
+            exclude-os-version (str):
+                os-version exclusion filter
+            exclude-name (str):
+                name exclusion filter
+        '''
+        params = cull_kwargs(('argString', 'nodeThreadcount', 'nodeKeepgoing', 'asUser',
+                              'scriptInterpreter', 'interpreterArgsQuoted', 'hostname', 'tags', 'os-name',
+                              'os-family', 'os-arch', 'os-version', 'name', 'exclude-hostname', 'exclude-tags',
+                              'exclude-os-name', 'exclude-os-family', 'exclude-os-arch', 'exclude-os-version',
+                              'exclude-name'), kwargs)
+
+        params['project'] = project
+        files = {'scriptFile': scriptFile}
+
+        if ('scriptInterpreter' in params) or ('interpreterArgsQuoted' in params):
+            self.requires_version(8)
+
+        argString = params.get('argString', None)
+        if argString is not None:
+            params['argString'] = dict2argstring(argString)
+
+        return self._exec(POST, 'run/script', params=params, files=files, **kwargs)
+
+    def run_url(self, project, scriptURL, **kwargs):
+        # TODO: finish this function
+        '''
+        Wraps Rundeck API POST /run/url <http://rundeck.org/docs/api/index.html#running-adhoc-script-urls>
+        * Requires API version >4
+
+        Returns a class ``rundeck.connection.RundeckResponse``
+
+
         '''
