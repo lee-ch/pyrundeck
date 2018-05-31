@@ -185,7 +185,7 @@ class RundeckApiTolerant(object):
               params=None,
               data=None,
               parse_response=True,
-              **kwargs):
+              **kwargs): 
         '''
         Executes a request to Rundeck via ``RundeckConnection``
 
@@ -727,12 +727,216 @@ class RundeckApiTolerant(object):
         return self._exec(POST, 'run/script', params=params, files=files, **kwargs)
 
     def run_url(self, project, scriptURL, **kwargs):
-        # TODO: finish this function
         '''
         Wraps Rundeck API POST /run/url <http://rundeck.org/docs/api/index.html#running-adhoc-script-urls>
         * Requires API version >4
 
         Returns a class ``rundeck.connection.RundeckResponse``
 
+        :param project:
+            (str) name of the project
+        :param scriptURL:
+            (str) url of the script to download and execute
 
+        :keyword args:
+            argString (str or dict):
+                argument string to pass to job, if ``str`` will be passed as is, if ``dict`` will be converted
+                to compatible ``str``
+            nodeThreadcount (int):
+                number of threads to use
+            nodeKeepgoing (bool):
+                if ``True`` will continue execution on other nodes regardless of job failure
+            asUser (str):
+                username identifying the user who executed the command, requires runAs permission
+            scriptInterpreter (str):
+                command to use to execute the script (requires API version >= 8)
+            interpreterArgsQuoted (bool):
+                if ``True`` script and file args will be quoted and passed as the last argument to ``scriptInterpreter``
+                (requires API version >= 8)
+            hostname (str):
+                hostname inclusion filter
+            tags (str):
+                tags inclusion filter
+            os-name (str):
+                os-name inclusion filter
+            os-family (str):
+                os-family inclusion filter
+            os-arch (str):
+                os-arch inclusion filter
+            os-version (str):
+                os-version inclusion filter
+            name (str):
+                name inclusion filter
+            exclude-hostname (str):
+                hostname exclusion filter
+            exclude-tags (str):
+                tags exclusion filter
+            exclude-os-name (str):
+                os-name exclusion filter
+            exclude os-family (str):
+                os-family exclusion filter
+            exclude-os-arch (str):
+                os-arch exclusion filter
+            exclude-os-version (str):
+                os-version exclusion filter
+            exclude-name (str):
+                name exclusion filter
         '''
+        self.requires_version(4)
+
+        data = cull_kwargs(('argString', 'nodeThreadcount', 'nodeKeepgoing', 'asUser',
+                            'scriptInterpreter', 'interpreterArgsQuoted', 'hostname', 'tags', 'os-name',
+                            'os-family', 'os-arch', 'os-version', 'name', 'exclude-hostname', 'exclude-tags',
+                            'exclude-os-name', 'exclude-os-family', 'exclude-os-arch', 'exclude-os-version',
+                            'exclude-name'), kwargs)
+
+        data['project'] = project
+        data['scriptURL'] = scriptURL
+
+        if ('scriptInterpreter' in data) or ('interpreterArgsQuoted' in data):
+            self.requires_version(8)
+
+        argString = data.get('argString', None)
+        if argString is not None:
+            data['argString'] = dict2argstring(argString)
+
+        return self._exec(POST, 'run/url', data=data, **kwargs)
+
+    def _post_projects(self, project, **kwargs):
+        '''
+        Wraps Rundeck API POST /projects <http://rundeck.org/docs/api/index.html#project-creation>
+
+        Returns class ``rundeck.connection.RundeckResponse``
+
+        Requires API version > 11
+
+        :param project:
+            (str) name of the project
+
+        :keyword args:
+            config (dict):
+                dictionary of key/value pairs of the project configuration
+        '''
+        self.requires_version(11)
+
+        config = kwargs.pop('config', None)
+
+        prop_tmpl = '<property key="{0}" value="{1}" />'
+        config_tmpl = '  <config>\n' + \
+                      '    {0}\n' + \
+                      '  </config>\n'
+        project_tmpl = '<project>\n' + \
+                       '  <name>{0}</name>\n' + \
+                       '{1}</project>'
+
+        if config is not None:
+            props_xml = '    \n'.join([prop_tmpl.format(k, v) for k, v in config.items()])
+            config_xml = config_tmpl.format(props_xml)
+        else:
+            config_xml = ''
+
+        xml = project_tmpl.format(project, config_xml)
+        print(xml)
+
+        headers = {'Content-Type': 'application/xml'}
+
+        return self._exec(POST, 'projects', data=xml, headers=headers, **kwargs)
+
+    def _get_projects(self, **kwargs):
+        '''
+        Wraps Rundeck API GET /projects <http://rundeck.org/docs/api/index.html#listing-projects>
+
+        Returns class ``rundeck.connection.RundeckResponse``
+        '''
+        return self._exec(GET, 'projects', **kwargs)
+
+    def project(self, project, **kwargs):
+        '''
+        Wraps Rundeck API /project/[NAME] <http://rundeck.org/docs/api/index.html#getting-project-info>
+
+        Returns class ``rundeck.connection.RundeckResponse``
+
+        :param project:
+            (str) name of the project
+        
+        :keyword args:
+            create (bool):
+                [default: ``True``]
+                if ``True`` create the project if it does not exist (requires API version > 11)
+        '''
+        # Check if ``kwargs['create']`` is True
+        create = kwargs.pop('create', None)
+        if create is None:
+            if self.connection.api_version >= 11:
+                create = True
+            else:
+                create = False
+        elif create == True:
+            self.requires_version(11)
+
+        rd_url = 'project/{0}'.format(urlquote(project))
+
+        project = None
+        try:
+            project = self._exec(GET, rd_url, **kwargs)
+        except HTTPError as exc:
+            if create:
+                project = self._exec(POST, rd_url, **kwargs)
+            else:
+                raise
+
+        return project
+
+    def project_resources(self, project, **kwargs):
+        '''
+        Wraprs Rundeck API GET /project/[NAME]/resources <http://rundeck.org/docs/api/index.html#updating-and-listing-resources-for-a-project>
+
+        Returns class ``rundeck.conection.RundeckResponse``
+
+        :param project:
+            (str) name of the project
+
+        :keyword args:
+            fmt (str):
+                [default: 'text']
+                the format of the response of ``rundeck.defaults.ExecutionOutputFormat`` values
+            hostname (str):
+                hostname inclusion filter
+            tags (str):
+                tags inclusion filter
+            os-name (str):
+                os-name inclusion filter
+            os-family (str):
+                os-family inclusion filter
+            os-arch (str):
+                os-arch inclusion filter
+            os-version (str):
+                os-version inclusion filter
+            name (str):
+                name inclusion filter
+            exclude-hostname (str):
+                hostname exclusion filter
+            exclude-tags (str):
+                tags exclusion filter
+            exclude-os-name (str):
+                os-name exclusion filter
+            exclude-os-family (str):
+                os-family exclusion filter
+            exclude-os-arch (str):
+                os-arch exclusion filter
+            exclude-os-version (str):
+                os-version exclusion filter
+            exclude-name (str):
+                name exclusion filter
+        '''
+        self.requires_version(2)
+
+        params = cull_kwargs(('fmt', 'scriptInterpreter', 'interpreterArgsQuoted', 'hostname',
+                              'tags', 'os-name', 'os-family', 'os-arch', 'os-version', 'name', 'exclude-hostname',
+                              'exclude-tags', 'exclude-os-name', 'exclude-os-family', 'exclude-os-arch',
+                              'exclude-os-version', 'exclude-name'), kwargs)
+
+        if 'fmt' in params:
+            params['format'] = params.pop('fmt')
+
+        return self._exec(GET, 'project/{0}/resources'.format(urlquote(project)), params=params, **kwargs)
