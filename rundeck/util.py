@@ -37,7 +37,7 @@ def node2dict(el):
 
 def cull_kwargs(api_keys, kwargs):
     '''
-    Strips the api_params from kwargs based on the list of api_keys
+    Strips the ``api_params`` from kwargs based on the list of api_keys
 
     Returns dictionary of the API params
 
@@ -48,6 +48,8 @@ def cull_kwargs(api_keys, kwargs):
     :param kwargs:
         (dict) dictionary of keyword args
     '''
+    # If keyword arg passed into the method calling ``cull_kwargs`` is in ``api_keys`` get the value
+    # of ``kwargs`` and assign it to the ``api_key`` in a ``dict``
     return {k: kwargs.pop(k) for k in api_keys if k in kwargs}
 
 

@@ -940,3 +940,109 @@ class RundeckApiTolerant(object):
             params['format'] = params.pop('fmt')
 
         return self._exec(GET, 'project/{0}/resources'.format(urlquote(project)), params=params, **kwargs)
+
+    def project_resources_update(self, project, nodes, **kwargs):
+        '''
+        Wraps RUndeck API POST /project/[NAME]/resources <http://rundeck.org/docs/api/index.html#updating-and-listing-resources-for-a-projects>
+
+        Returns class ``rundeck.connection.RundeckResponse``
+
+        :param project:
+            (str) name of the project
+        :param nodes:
+            (list) list of RundeckNode objects
+        '''
+        headers = {'Content-Type': 'text/xml'}
+
+        data = '<nodes>{0}</nodes>'.format('\n'.join([node.xml for node in nodes]))
+
+        return self._exec(POST, 'project/{0}/resources'.format(urlquote(project)), data=data, headers=headers, **kwargs)
+
+    def project_resources_refresh(self, project, providerURL=None, **kwargs):
+        '''
+        Wraps Rundeck API POST /project/[NAME]/resources/refresh <http://rundeck.org/docs/api/index.html#refreshing-resources-for-a-project>
+
+        Returns class ``rundeck.connection.RundeckResponse``
+
+        :param project:
+            (str) name of the project
+        :param providerURL:
+            (str) Resource Model Provider URL to refresh the resources from, if not specified, provider URL
+            from ``project.properties`` file is used
+        '''
+        self.requires_version(2)
+
+        data = {}
+        if providerURL is not None:
+            data['providerURL'] = providerURL
+
+        return self._exec(POST, 'project/{0}/resources/refresh'.format(project), data=data, **kwargs)
+
+    def history(self, project, **kwargs):
+        '''
+        Wraps Rundeck API GET /history <http://rundeck.org/docs/api/index.html#listing-history>
+
+        Returns class ``rundeck.connection.RundeckResponse``
+
+        :param project:
+            (str) name of the project
+
+        :keyword args:
+            jobIdFilter (str):
+                include event for a job ID
+            reportIdFilter (str):
+                include events for an event name
+            userFilter (str):
+                include events created by user in ``userFilter``
+            startFilter (str):
+                one of ``rundeck.defaults.Status`` values
+            jobListFilter (str or list):
+                one or more full job group/name to include
+            excludeJobListFilter (str or list):
+                one or more full job group/name to include
+            recentFilter (str):
+                Text format to filter executions that completed with certain period of time, format:
+                'XY' where 'X' is an integer and 'Y' is one of the following:
+
+                    * 'h': hour
+                    * 'd': day
+                    * 'w': week
+                    * 'm': month
+                    * 'y': year
+
+                Value of '2w' returns executions that completed within the last two weeks
+            begin (int or str):
+                either a unix millisecond timestamp or W3C date time 'yyyy-MM-ddTHH:mm:ssZ'
+            end (int or str):
+                either a unix millisecond timestamp or a W3C date time 'yyyy-MM-ddTHH:mm:ssZ'
+            max (int):
+                [default: 20]
+                max number of results to include in response
+            offset (int):
+                [default: 0]
+                offset for result
+        '''
+        self.required_version(4)
+        params = cull_kwargs(('jobIdFilter', 'reportIdFilter', 'userFilter', 'startFilter',
+                              'jobListFilter', 'excludeJobListFilter', 'recentFilter', 'begin', 'end', 'max',
+                              'offset'), kwargs)
+
+        params['project'] = project
+        return self._exec(GET, 'history', params=params, **kwargs)
+
+
+class RundeckApi(RundeckApiTolerant):
+    '''
+    Same as ``RundeckApiTolerant``
+    '''
+    def _exec(self, method, url, params=None, data=None, parse_response=True, **kwargs):
+        quiet = kwargs.get('quiet', False)
+
+        result = super(RundeckApi, self)._exec(
+            method, url, params=params, data=data, parse_response=parse_response, **kwargs
+        )
+
+        if not quiet and parse_response:
+            result.raise_for_error()
+
+        return result
