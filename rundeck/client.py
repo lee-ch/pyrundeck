@@ -10,8 +10,7 @@ from string import ascii_letters, digits
 try:
     from string import maketrans
 except ImportError:
-    # Python 3
-    maketrans = str.maketrans
+    maketrans = str.maketrans # Python 3
 
 from rundeck.api import RundeckApiTolerant, RundeckApi, RundeckNode
 from rundeck.connection import RundeckConnection, RundeckResponse
@@ -32,7 +31,7 @@ from rundeck.defaults import (
     Status,
     DupeOption,
     UuidOption,
-    JobDefFromat,
+    JobDefFormat,
     JOB_RUN_TIMEOUT,
     JOB_RUN_INTERVAL)
 
@@ -56,7 +55,7 @@ def is_job_id(job_id):
         (str) Rundeck job ID
     '''
     if job_id and isinstance(job_id, StringType):
-        return job_id.translate(_JOB_TO_TRANS_TAB) == _JOB_TO_TEMPLATE
+        return job_id.translate(_JOB_TO_TRANS_TAB) == _JOB_ID_TEMPLATE
 
     return False
 
@@ -189,3 +188,33 @@ class Rundeck(object):
 
         # Return jobs limited by ``limit`` or all jobs if ``limit`` is ``None``
         return job_ids[:limit]
+
+    @transform('jobs')
+    def list_jobs(self, project, **kwargs):
+        '''
+        Fetch a list of jobs from ``project``
+
+        Returns ``list`` of jobs
+
+        :param project:
+            (str) name of a project
+
+        :keyword args:
+            limit (int):
+                limit the result set to 1 or more jobs
+            idlist (str or list(str, ...)):
+                comma-separated string or ``list`` of job IDs to include
+            groupPath (str):
+                [default: '*']
+                group or partial group path to include all jobs within that group path
+                or '*' for all groups, or '-' to match the top level jobs only
+            jobFilter (str):
+                job name filter, matches any job name that contains ``jobFilter`` string
+            jobExactFilter (str):
+                exact job name to match
+            groupPathExact (str)
+                exact group path to match or '-' to match the top level jobs only
+        '''
+        jobs = self.api.jobs(project, **kwargs)
+        jobs.raise_for_error()
+        return jobs

@@ -63,7 +63,7 @@ def dict2argstring(arg_string):
         (str, dict) argument string to pass to job - if str, will be passed as is,
         otherwise if it is a dict, will be converted to a compatible string
     '''
-    if isinstance(string, dict):
+    if isinstance(arg_string, dict):
         return ' '.join(['-' + str(k) + ' ' + str(v) for k, v in arg_string.items()])
     else:
         return arg_string

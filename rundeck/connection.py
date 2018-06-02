@@ -75,7 +75,7 @@ class RundeckResponse(object):
     @memoize
     def message(self):
         term = 'success' if self.success else 'error'
-        messag_el = self.etree.find(term)
+        message_el = self.etree.find(term)
         if message_el is None:
             return term
         else:
@@ -147,7 +147,7 @@ class RundeckConnectionTolerant(object):
         if self.api_version < 1 or self.api_version > RUNDECK_API_VERSION:
             raise ApiVersionNotSupported(
                 'The requested Rundeck API Version, \'{0}\' '
-                'is not supported. Supported versions: 1-{0}'.format(
+                'is not supported. Supported versions: 1-{1}'.format(
                     self.api_version, RUNDECK_API_VERSION
                 )
             )
@@ -268,7 +268,7 @@ class RundeckConnectionTolerant(object):
 
     def request(self,
                 method,
-                url
+                url,
                 params=None,
                 headers=None,
                 data=None,

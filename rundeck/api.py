@@ -539,16 +539,16 @@ class RundeckApiTolerant(object):
                 [default: 0]
                 offset for result set
             '''
-            self.requires_version(5)
+        self.requires_version(5)
 
-            params = cull_kwargs(('statusFilter', 'abortedbyFilter', 'userFilter', 'recentFilter',
-                                  'begin', 'end', 'adhoc', 'jobIdListFilter', 'excludeJobIdListFilter',
-                                  'jobListFilter', 'excludeJobListFilter', 'groupPath', 'groupPathExact',
-                                  'excludeGroupPath', 'excludeGroupPathExact', 'jobExactFilter',
-                                  'excludeJobExactFilter', 'max', 'offset'), kwargs)
-            params['project'] = project
+        params = cull_kwargs(('statusFilter', 'abortedbyFilter', 'userFilter', 'recentFilter',
+                              'begin', 'end', 'adhoc', 'jobIdListFilter', 'excludeJobIdListFilter',
+                              'jobListFilter', 'excludeJobListFilter', 'groupPath', 'groupPathExact',
+                              'excludeGroupPath', 'excludeGroupPathExact', 'jobExactFilter',
+                              'excludeJobExactFilter', 'max', 'offset'), kwargs)
+        params['project'] = project
 
-            return self._exec(GET, 'executions', params=params, **kwargs)
+        return self._exec(GET, 'executions', params=params, **kwargs)
 
     def execution_output(self, execution_id, **kwargs):
         '''
@@ -1022,7 +1022,7 @@ class RundeckApiTolerant(object):
                 [default: 0]
                 offset for result
         '''
-        self.required_version(4)
+        self.requires_version(4)
         params = cull_kwargs(('jobIdFilter', 'reportIdFilter', 'userFilter', 'startFilter',
                               'jobListFilter', 'excludeJobListFilter', 'recentFilter', 'begin', 'end', 'max',
                               'offset'), kwargs)
