@@ -241,7 +241,8 @@ class RundeckApiTolerant(object):
                 specify an exact group to match or '-' to match the top level jobs only
         '''
         params = cull_kwargs(
-            ('idlist', 'groupPath', 'jobFilter', 'jobExactFilter', 'groupPathExact', kwargs)
+            ('idlist', 'groupPath', 'jobFilter', 'jobExactFilter', 'groupPathExact'),
+            kwargs
         )
 
         if 'jobExactFilter' in params or 'groupPathExact' in params:
@@ -324,7 +325,8 @@ class RundeckApiTolerant(object):
             exclude-name (str):
                 name exclusion filter
         '''
-        params = cull_kwargs(('argString', 'loglevel', 'asUser', 'exclude-precedence',
+        params = cull_kwargs(
+            ('argString', 'loglevel', 'asUser', 'exclude-precedence',
             'hostname', 'tags', 'os-name', 'os-family', 'os-arch', 'os-version', 'name',
             'exclude-hostname', 'exclude-tags', 'exclude-os-name', 'exclude-os-family',
             'exclude-os-arch', 'exclude-os-version', 'exclude-name'), kwargs)
@@ -442,7 +444,7 @@ class RundeckApiTolerant(object):
 
         try:
             return self._exec(POST, 'jobs/delete', data=data, **kwargs)
-        except Exception as e:
+        except Exception:
             raise
 
     def job_executions(self, job_id, **kwargs):
@@ -850,6 +852,21 @@ class RundeckApiTolerant(object):
         '''
         return self._exec(GET, 'projects', **kwargs)
 
+    def projects(self, method=GET, **kwargs):
+        '''
+        Interface to the Rundeck projects API endpoint
+
+        Returns: class ``rundeck.connection.RundeckResponse``
+
+        :param method:
+            [default: 'GET']
+            (str) GET retrieves a project, POST creates a project
+        '''
+        if method == GET:
+            return self._get_projects(**kwargs)
+        elif method == POST:
+            return self._post_projects(**kwargs)
+
     def project(self, project, **kwargs):
         '''
         Wraps Rundeck API /project/[NAME] <http://rundeck.org/docs/api/index.html#getting-project-info>
@@ -879,7 +896,7 @@ class RundeckApiTolerant(object):
         project = None
         try:
             project = self._exec(GET, rd_url, **kwargs)
-        except HTTPError as exc:
+        except HTTPError:
             if create:
                 project = self._exec(POST, rd_url, **kwargs)
             else:
