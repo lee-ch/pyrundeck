@@ -481,6 +481,17 @@ class RundeckApiTolerant(object):
         params = {'project': project}
         return self._exec(GET, 'executions/running', params=params, **kwargs)
 
+    def execution(self, execution_id, **kwargs):
+        '''
+        Wraps Rundeck API GET /execution/[ID] <http://rundeck.org/docs/api/index.html#getting-execution-info>
+
+        Returns: class ``rundeck.connection.RundeckResponse``
+
+        :param execution_id:
+            (str) Rundeck job execution ID
+        '''
+        return self._exec(GET, 'execution/{0}'.format(execution_id), **kwargs)
+
     def executions(self, project, **kwargs):
         '''
         Wraps Rundeck API GET /executions <http://rundeck.org/docs/api/index.html#getting-execution-info>
